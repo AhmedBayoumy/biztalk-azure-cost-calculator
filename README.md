@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BizTalk Azure Cost Calculator
 
-## Getting Started
+An AI-powered tool to estimate Azure migration costs from BizTalk Server.
 
-First, run the development server:
+## Features
+
+- 📄 Parse BizTalk analysis JSON/Markdown, binding XML, or free-text descriptions
+- 🤖 AI-powered parsing via GitHub Models API (uses your GitHub token automatically)
+- 💰 Live Azure pricing via Azure Retail Prices API
+- 📊 Mermaid architecture diagrams
+- 💾 Save estimates to SQLite database (local)
+- 👤 Sign in with GitHub OAuth
+
+## Quick Start
 
 ```bash
+npm install
+cp .env.local.example .env.local
+# Edit .env.local with your credentials
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## GitHub OAuth Setup (for saving estimates)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Go to https://github.com/settings/developers → OAuth Apps → New OAuth App
+2. Homepage URL: `http://localhost:3001`
+3. Callback URL: `http://localhost:3001/api/auth/callback/github`
+4. Copy Client ID and Client Secret to `.env.local`
+5. Generate a NextAuth secret: `openssl rand -base64 32`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## AI Parsing
 
-## Learn More
+The app uses GitHub Models API for parsing free-text descriptions.
 
-To learn more about Next.js, take a look at the following resources:
+- If you sign in with GitHub OAuth → your OAuth token is used automatically
+- If not signed in → set `GH_TOKEN` in `.env.local` (from `gh auth login`)
+- Fallback: set `OPENAI_API_KEY` for any OpenAI-compatible endpoint
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Architecture
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+See the Mermaid diagram rendered in the app after calculating costs.
 
-## Deploy on Vercel
+## Tech Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 15, React 19, Tailwind CSS
+- NextAuth v4 (GitHub OAuth)
+- better-sqlite3 (local SQLite database)
+- Azure Retail Prices API (live pricing)
+- GitHub Models API (AI parsing)
+- jsPDF + xlsx (export)

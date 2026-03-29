@@ -12,7 +12,15 @@ import { normalizeAdapterType } from './input-parser';
 
 let _openai: OpenAI | null = null;
 
-function getClient(): OpenAI {
+function getClient(passedToken?: string): OpenAI {
+  // When a per-request token is provided, always create a fresh client for it
+  if (passedToken) {
+    return new OpenAI({
+      baseURL: 'https://models.inference.ai.azure.com',
+      apiKey: passedToken,
+    });
+  }
+
   if (!_openai) {
     // Check all possible token sources — GH_TOKEN is set automatically by GitHub Copilot CLI
     const token =
@@ -33,20 +41,26 @@ function getClient(): OpenAI {
   return _openai;
 }
 
-function getModelName(): string {
-  const isGitHub = !!(process.env.GH_TOKEN || process.env.GITHUB_TOKEN);
+function getModelName(passedToken?: string): string {
+  const isGitHub = !!(passedToken || process.env.GH_TOKEN || process.env.GITHUB_TOKEN);
   return isGitHub ? 'gpt-4o' : 'gpt-4o';
 }
 
 // ── Public API ──
 
 /** Use OpenAI to parse free-text client descriptions into structured BizTalk analysis */
-export async function parseWithAI(text: string): Promise<BizTalkAnalysis> {
-  const client = getClient();
+export async function parseWithAI(text: string, token?: string): Promise<BizTalkAnalysis> {
+  // Token priority: passed token > GH_TOKEN > GITHUB_TOKEN > OPENAI_API_KEY
+  const apiKey = token || process.env.GH_TOKEN || process.env.GITHUB_TOKEN || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new Error('No AI token found. GH_TOKEN, GITHUB_TOKEN, or OPENAI_API_KEY must be set.');
+  }
+
+  const client = getClient(token);
   const prompt = buildExtractionPrompt(text);
 
   const response = await client.chat.completions.create({
-    model: getModelName(),
+    model: getModelName(token),
     temperature: 0.1,
     response_format: { type: 'json_object' },
     messages: [

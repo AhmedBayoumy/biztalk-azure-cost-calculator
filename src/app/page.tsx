@@ -1,32 +1,45 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { InputForm, type InputFormPayload } from "@/components/InputForm";
+import ReviewStep from "@/components/ReviewStep";
 import ResultsView from "@/components/ResultsView";
-import type { AppStep, BizTalkAnalysis, AzureServiceMapping, CostEstimationResult } from "@/lib/types";
-import { generateArchitectureDiagram } from "@/lib/diagram-generator";
+import { SaveEstimatePanel } from "@/components/SaveEstimatePanel";
+import type { AppStep, BizTalkAnalysis, CostEstimationResult, SupportedCurrency } from "@/lib/types";
 
 export default function Home() {
   const [step, setStep] = useState<AppStep>("input");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [analysis, setAnalysis] = useState<BizTalkAnalysis | null>(null);
-  const [mappings, setMappings] = useState<AzureServiceMapping[] | null>(null);
   const [costResult, setCostResult] = useState<CostEstimationResult | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState("swedencentral");
+  const [selectedCurrency, setSelectedCurrency] = useState<SupportedCurrency>("SEK");
+  const [rawInput, setRawInput] = useState<Record<string, unknown>>({});
 
-  const diagramString = useMemo(() => {
-    if (mappings && costResult) {
-      return generateArchitectureDiagram(mappings, costResult);
+  // Restore estimate from sessionStorage (e.g. loaded from Clients page)
+  useEffect(() => {
+    const stored = sessionStorage.getItem('loadEstimate');
+    if (stored) {
+      try {
+        const estimate = JSON.parse(stored);
+        sessionStorage.removeItem('loadEstimate');
+        if (estimate.analysis) setAnalysis(estimate.analysis);
+        if (estimate.cost_result) setCostResult(estimate.cost_result);
+        setStep('results');
+      } catch { /* ignore */ }
     }
-    return undefined;
-  }, [mappings, costResult]);
+  }, []);
 
+  // Step 1: Parse input -> show ReviewStep
   const handleSubmit = async (payload: InputFormPayload) => {
     setIsLoading(true);
     setError(undefined);
+    setSelectedRegion(payload.region);
+    setSelectedCurrency(payload.currency);
+    setRawInput({ format: payload.format, content: payload.content });
 
     try {
-      // Step 1 — Parse input
       const parseRes = await fetch("/api/parse-input", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,18 +56,30 @@ export default function Home() {
 
       const parseData = await parseRes.json();
       setAnalysis(parseData.analysis);
-      setMappings(parseData.mappings);
-      setStep("calculating");
+      setStep("review");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An unexpected error occurred";
+      setError(message);
+      setStep("input");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      // Step 2 — Calculate cost
+  // Step 2: User confirms (possibly edited) analysis -> calculate costs
+  const handleConfirm = async (confirmedAnalysis: BizTalkAnalysis) => {
+    setAnalysis(confirmedAnalysis);
+    setStep("calculating");
+    setError(undefined);
+
+    try {
       const costRes = await fetch("/api/calculate-cost", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          analysis: parseData.analysis,
-          mappings: parseData.mappings,
-          region: payload.region,
-          currency: payload.currency,
+          analysis: confirmedAnalysis,
+          region: selectedRegion,
+          currency: selectedCurrency,
         }),
       });
 
@@ -64,15 +89,20 @@ export default function Home() {
       }
 
       const costData = await costRes.json();
-      setCostResult(costData);
+      setCostResult(costData.result);
       setStep("results");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "An unexpected error occurred";
       setError(message);
-      setStep("input");
-    } finally {
-      setIsLoading(false);
+      setStep("review");
     }
+  };
+
+  const handleReset = () => {
+    setStep("input");
+    setError(undefined);
+    setAnalysis(null);
+    setCostResult(null);
   };
 
   return (
@@ -110,29 +140,43 @@ export default function Home() {
           </div>
         )}
 
+        {step === "review" && analysis && (
+          <ReviewStep
+            analysis={analysis}
+            onConfirm={handleConfirm}
+            onBack={() => setStep("input")}
+          />
+        )}
+
         {step === "calculating" && (
           <div className="flex flex-col items-center justify-center gap-4 py-24">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#0078D4]" />
             <p className="text-sm font-medium text-gray-600">
-              Calculating Azure costs…
+              Calculating Azure costs...
             </p>
             <p className="text-xs text-gray-400">
               Fetching live pricing from the Azure Retail Prices API
             </p>
+            {error && (
+              <p className="text-sm text-red-600 mt-2">{error}</p>
+            )}
           </div>
         )}
 
         {step === "results" && costResult && (
-          <div className="space-y-6">
-            <ResultsView
-              result={costResult}
-              diagramString={diagramString}
-              onReset={() => {
-                setStep("input");
-                setError(undefined);
-              }}
-            />
-          </div>
+          <>
+            <ResultsView result={costResult} onReset={handleReset} />
+            <div className="max-w-4xl mx-auto px-4 mt-6">
+              <SaveEstimatePanel
+                analysis={analysis as unknown as Record<string, unknown>}
+                mappings={((costResult as unknown as { mappings?: unknown[] }).mappings) ?? []}
+                costResult={costResult as unknown as Record<string, unknown>}
+                rawInput={rawInput}
+                region={selectedRegion}
+                currency={selectedCurrency}
+              />
+            </div>
+          </>
         )}
       </main>
     </div>
