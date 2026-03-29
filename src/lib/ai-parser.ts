@@ -14,30 +14,28 @@ let _openai: OpenAI | null = null;
 
 function getClient(): OpenAI {
   if (!_openai) {
-    const githubToken = process.env.GITHUB_TOKEN;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    // Check all possible token sources — GH_TOKEN is set automatically by GitHub Copilot CLI
+    const token =
+      process.env.GH_TOKEN ||        // set by GitHub Copilot CLI / gh auth
+      process.env.GITHUB_TOKEN ||    // set manually in .env.local
+      process.env.OPENAI_API_KEY;    // fallback to OpenAI
 
-    if (githubToken) {
-      // GitHub Models API — OpenAI-SDK compatible, no extra cost for Copilot users
-      _openai = new OpenAI({
-        baseURL: 'https://models.inference.ai.azure.com',
-        apiKey: githubToken,
-      });
-    } else if (openaiKey) {
-      _openai = new OpenAI({ apiKey: openaiKey });
-    } else {
-      throw new Error(
-        'No AI API key found. Set either GITHUB_TOKEN (recommended, free with GitHub Copilot) ' +
-        'or OPENAI_API_KEY in your .env.local file.',
-      );
+    if (!token) {
+      throw new Error('No AI token found. GH_TOKEN, GITHUB_TOKEN, or OPENAI_API_KEY must be set.');
     }
+
+    const isGitHub = !!(process.env.GH_TOKEN || process.env.GITHUB_TOKEN);
+    _openai = new OpenAI({
+      baseURL: isGitHub ? 'https://models.inference.ai.azure.com' : undefined,
+      apiKey: token,
+    });
   }
   return _openai;
 }
 
-// GitHub Models uses different model names than OpenAI
 function getModelName(): string {
-  return process.env.GITHUB_TOKEN ? 'gpt-4o' : 'gpt-4o';
+  const isGitHub = !!(process.env.GH_TOKEN || process.env.GITHUB_TOKEN);
+  return isGitHub ? 'gpt-4o' : 'gpt-4o';
 }
 
 // ── Public API ──
