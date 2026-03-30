@@ -3,8 +3,6 @@
 import React, { useState, useCallback } from "react";
 import { Upload, ClipboardPaste, Settings2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { FileUpload } from "@/components/FileUpload";
 import { CurrencySelector } from "@/components/CurrencySelector";
@@ -40,10 +38,10 @@ interface InputFormProps {
   error?: string;
 }
 
-const TABS: { id: InputMode; label: string; icon: React.ReactNode }[] = [
-  { id: "upload", label: "Upload File", icon: <Upload className="h-4 w-4" /> },
-  { id: "paste", label: "Paste Text", icon: <ClipboardPaste className="h-4 w-4" /> },
-  { id: "manual", label: "Manual Entry", icon: <Settings2 className="h-4 w-4" /> },
+const TABS: { id: InputMode; label: string; icon: React.ReactNode; desc: string }[] = [
+  { id: "upload", label: "Upload File", icon: <Upload className="h-4 w-4" />, desc: "JSON, Markdown, XML, TXT" },
+  { id: "paste", label: "Paste Text", icon: <ClipboardPaste className="h-4 w-4" />, desc: "Any language description" },
+  { id: "manual", label: "Manual Entry", icon: <Settings2 className="h-4 w-4" />, desc: "Enter numbers directly" },
 ];
 
 const defaultManual: ManualData = {
@@ -59,14 +57,10 @@ const defaultManual: ManualData = {
 function detectFormat(fileName: string): InputFormat {
   const ext = fileName.split(".").pop()?.toLowerCase();
   switch (ext) {
-    case "json":
-      return "json";
-    case "md":
-      return "markdown";
-    case "xml":
-      return "xml-binding";
-    default:
-      return "text";
+    case "json": return "json";
+    case "md": return "markdown";
+    case "xml": return "xml-binding";
+    default: return "text";
   }
 }
 
@@ -74,15 +68,9 @@ export function InputForm({ onSubmit, isLoading, error }: InputFormProps) {
   const [mode, setMode] = useState<InputMode>("upload");
   const [currency, setCurrency] = useState<SupportedCurrency>(DEFAULT_CURRENCY);
   const [region, setRegion] = useState(DEFAULT_REGION);
-
-  // Upload state
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [fileFormat, setFileFormat] = useState<InputFormat>("text");
-
-  // Paste state
   const [pasteContent, setPasteContent] = useState("");
-
-  // Manual state
   const [manual, setManual] = useState<ManualData>(defaultManual);
 
   const handleFileLoaded = useCallback((content: string, fileName: string) => {
@@ -96,7 +84,6 @@ export function InputForm({ onSubmit, isLoading, error }: InputFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     let format: InputFormat;
     let content: string;
 
@@ -131,150 +118,111 @@ export function InputForm({ onSubmit, isLoading, error }: InputFormProps) {
       mode === "manual");
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {/* Tab bar */}
-      <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+      <div className="grid grid-cols-3 gap-2">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => setMode(tab.id)}
             className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              "flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-3 text-center transition-all",
               mode === tab.id
-                ? "bg-white text-[#0078D4] shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "border-[#0078D4] bg-[#0078D4]/5 text-[#0078D4]"
+                : "border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700"
             )}
           >
-            {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
+            <span className={cn("p-1.5 rounded-lg", mode === tab.id ? "bg-[#0078D4]/10" : "bg-gray-100")}>
+              {tab.icon}
+            </span>
+            <span className="text-xs font-semibold leading-tight">{tab.label}</span>
+            <span className="text-[10px] text-gray-400 leading-tight hidden sm:block">{tab.desc}</span>
           </button>
         ))}
       </div>
 
       {/* Tab content */}
-      <Card>
-        <CardContent className="pt-6">
-          {mode === "upload" && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Upload a BizTalk analysis file — JSON export, markdown report, XML binding, or plain text description.
-              </p>
-              <FileUpload onFileLoaded={handleFileLoaded} />
-            </div>
-          )}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        {mode === "upload" && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Upload a BizTalk analysis export — JSON, markdown report, XML binding file, or any text description.
+            </p>
+            <FileUpload onFileLoaded={handleFileLoaded} />
+          </div>
+        )}
 
-          {mode === "paste" && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Paste a description of your BizTalk integrations or an analysis output.
-              </p>
-              <Textarea
-                placeholder={`Example:\nWe have 15 BizTalk integrations:\n- 5 file-based integrations (SFTP)\n- 4 REST API integrations\n- 3 database integrations (SQL Server)\n- 2 messaging integrations (MQ Series)\n- 1 SAP integration\nApproximately 10,000 messages per day.`}
-                value={pasteContent}
-                onChange={(e) => setPasteContent(e.target.value)}
-                className="min-h-[200px]"
-              />
-            </div>
-          )}
+        {mode === "paste" && (
+          <div className="space-y-3">
+            <p className="text-sm text-gray-500">
+              Paste a description of your BizTalk environment. Swedish and English are both supported.
+            </p>
+            <Textarea
+              placeholder={`Example:\nVi har ca 120 Biztalkburna integrationer. Nånstans 25-30% är enkla file transfers.\nVolym: ca 2 miljoner events per 3 dagar vid peak.\nVi använder Logic Apps, Container Apps, Azure Functions, APIM, Service Bus...`}
+              value={pasteContent}
+              onChange={(e) => setPasteContent(e.target.value)}
+              className="min-h-[200px] text-sm resize-none"
+            />
+          </div>
+        )}
 
-          {mode === "manual" && (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Enter high-level numbers about your BizTalk environment.
-              </p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <NumberField
-                  label="Total Integrations"
-                  value={manual.totalIntegrations}
-                  onChange={(v) => updateManual("totalIntegrations", v)}
-                  min={1}
-                  max={500}
-                />
-                <NumberField
-                  label="Messages / Day"
-                  value={manual.messagesPerDay}
-                  onChange={(v) => updateManual("messagesPerDay", v)}
-                  min={0}
-                  step={100}
-                />
-              </div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                Integration Mix (%)
-              </p>
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <NumberField
-                  label="File Transfers"
-                  value={manual.pctFileTransfers}
-                  onChange={(v) => updateManual("pctFileTransfers", v)}
-                  min={0}
-                  max={100}
-                  suffix="%"
-                />
-                <NumberField
-                  label="HTTP / API"
-                  value={manual.pctHttpApi}
-                  onChange={(v) => updateManual("pctHttpApi", v)}
-                  min={0}
-                  max={100}
-                  suffix="%"
-                />
-                <NumberField
-                  label="Database"
-                  value={manual.pctDatabase}
-                  onChange={(v) => updateManual("pctDatabase", v)}
-                  min={0}
-                  max={100}
-                  suffix="%"
-                />
-                <NumberField
-                  label="Messaging"
-                  value={manual.pctMessaging}
-                  onChange={(v) => updateManual("pctMessaging", v)}
-                  min={0}
-                  max={100}
-                  suffix="%"
-                />
-                <NumberField
-                  label="Other"
-                  value={manual.pctOther}
-                  onChange={(v) => updateManual("pctOther", v)}
-                  min={0}
-                  max={100}
-                  suffix="%"
-                />
+        {mode === "manual" && (
+          <div className="space-y-5">
+            <p className="text-sm text-gray-500">
+              Enter high-level numbers about your BizTalk environment.
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <NumberField label="Total Integrations" value={manual.totalIntegrations} onChange={(v) => updateManual("totalIntegrations", v)} min={1} max={500} />
+              <NumberField label="Messages / Day" value={manual.messagesPerDay} onChange={(v) => updateManual("messagesPerDay", v)} min={0} step={100} />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Integration Mix</p>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <NumberField label="File Transfers" value={manual.pctFileTransfers} onChange={(v) => updateManual("pctFileTransfers", v)} min={0} max={100} suffix="%" />
+                <NumberField label="HTTP / API" value={manual.pctHttpApi} onChange={(v) => updateManual("pctHttpApi", v)} min={0} max={100} suffix="%" />
+                <NumberField label="Database" value={manual.pctDatabase} onChange={(v) => updateManual("pctDatabase", v)} min={0} max={100} suffix="%" />
+                <NumberField label="Messaging" value={manual.pctMessaging} onChange={(v) => updateManual("pctMessaging", v)} min={0} max={100} suffix="%" />
+                <NumberField label="Other" value={manual.pctOther} onChange={(v) => updateManual("pctOther", v)} min={0} max={100} suffix="%" />
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
 
-      {/* Currency & Region */}
-      <CurrencySelector
-        currency={currency}
-        region={region}
-        onCurrencyChange={setCurrency}
-        onRegionChange={setRegion}
-      />
+      {/* Region & Currency */}
+      <CurrencySelector currency={currency} region={region} onCurrencyChange={setCurrency} onRegionChange={setRegion} />
 
       {/* Error */}
       {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <svg className="w-4 h-4 mt-0.5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <span>{error}</span>
         </div>
       )}
 
       {/* Submit */}
-      <Button type="submit" size="lg" className="w-full" disabled={!canSubmit}>
+      <button
+        type="submit"
+        disabled={!canSubmit}
+        className="w-full h-12 rounded-xl bg-[#0078D4] hover:bg-[#106EBE] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm shadow-blue-900/20"
+      >
         {isLoading ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Analyzing…
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Analysing…
           </>
         ) : (
-          "Calculate Cost"
+          <>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Calculate Azure Cost
+          </>
         )}
-      </Button>
+      </button>
     </form>
   );
 }
@@ -294,9 +242,7 @@ interface NumberFieldProps {
 function NumberField({ label, value, onChange, min, max, step = 1, suffix }: NumberFieldProps) {
   return (
     <div className="space-y-1">
-      <label className="block text-sm font-medium text-gray-700">
-        {label}
-      </label>
+      <label className="block text-xs font-semibold text-gray-600">{label}</label>
       <div className="relative">
         <input
           type="number"
@@ -305,10 +251,10 @@ function NumberField({ label, value, onChange, min, max, step = 1, suffix }: Num
           min={min}
           max={max}
           step={step}
-          className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0078D4] focus-visible:ring-offset-1"
+          className="h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0078D4] focus:border-transparent"
         />
         {suffix && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 pointer-events-none">
             {suffix}
           </span>
         )}

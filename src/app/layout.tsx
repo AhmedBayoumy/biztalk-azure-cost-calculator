@@ -4,8 +4,8 @@ import { Providers } from "@/components/Providers";
 import { Header } from "@/components/Header";
 
 export const metadata: Metadata = {
-  title: "BizTalk Migration Cost Calculator",
-  description: "Estimate Azure costs for BizTalk Server migrations",
+  title: "BizTalk → Azure Cost Calculator",
+  description: "Estimate Azure migration costs from BizTalk Server integrations",
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="min-h-screen bg-gray-50 text-gray-900">
+      <body className="min-h-screen bg-gray-50 text-gray-900 font-sans">
         <Providers>
           <Header />
           <main>{children}</main>
