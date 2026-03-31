@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 import type { RawInput } from '@/lib/types';
 import { parseInput } from '@/lib/input-parser';
 import { parseWithAI } from '@/lib/ai-parser';
@@ -21,12 +22,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Read OAuth token from the JWT (server-side only — never exposed to client)
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const sessionToken = token?.accessToken as string | undefined;
+
     let analysis;
     if (body.format === 'text') {
-      const hasAIKey = !!(process.env.GH_TOKEN || process.env.GITHUB_TOKEN || process.env.OPENAI_API_KEY);
+      const hasAIKey = !!(sessionToken || process.env.GH_TOKEN || process.env.GITHUB_TOKEN || process.env.OPENAI_API_KEY);
       if (hasAIKey) {
-        // Use AI for richer extraction when a key is available
-        analysis = await parseWithAI(body.content);
+        analysis = await parseWithAI(body.content, sessionToken);
       } else {
         // Fallback: smart regex parser — works without any API key
         analysis = parseInput({ ...body, format: 'markdown' });
