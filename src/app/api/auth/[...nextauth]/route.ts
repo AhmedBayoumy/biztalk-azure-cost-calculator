@@ -1,6 +1,14 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import GithubProvider from 'next-auth/providers/github';
 
+// Warn if NEXTAUTH_SECRET is missing on actual cloud deployments
+// (VERCEL env var is set automatically on Vercel; similar for other platforms)
+if ((process.env.VERCEL || process.env.RAILWAY_ENVIRONMENT || process.env.FLY_APP_NAME) && !process.env.NEXTAUTH_SECRET) {
+  throw new Error(
+    'NEXTAUTH_SECRET is required in production. Generate one with: openssl rand -base64 32'
+  );
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GithubProvider({
@@ -14,6 +22,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account) {
+        // Keep access token in JWT only — never expose it to the client via session
         token.accessToken = account.access_token;
       }
       if (profile) {
@@ -23,9 +32,10 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      session.accessToken = token.accessToken as string | undefined;
+      // Only expose safe, non-sensitive fields to the client
       session.user.login = token.login as string | undefined;
       session.user.avatarUrl = token.avatarUrl as string | undefined;
+      // accessToken is intentionally NOT added here — use getToken() in API routes
       return session;
     },
   },

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { getToken } from 'next-auth/jwt';
 import type { RawInput } from '@/lib/types';
 import { parseInput } from '@/lib/input-parser';
 import { parseWithAI } from '@/lib/ai-parser';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,15 +22,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get session token — if signed in with GitHub, use their OAuth token for AI
-    const session = await getServerSession(authOptions);
-    const sessionToken = session?.accessToken;
+    // Read OAuth token from the JWT (server-side only — never exposed to client)
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+    const sessionToken = token?.accessToken as string | undefined;
 
     let analysis;
     if (body.format === 'text') {
       const hasAIKey = !!(sessionToken || process.env.GH_TOKEN || process.env.GITHUB_TOKEN || process.env.OPENAI_API_KEY);
       if (hasAIKey) {
-        // Use AI for richer extraction when a key is available
         analysis = await parseWithAI(body.content, sessionToken);
       } else {
         // Fallback: smart regex parser — works without any API key

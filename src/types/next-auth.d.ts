@@ -3,7 +3,7 @@ import 'next-auth/jwt';
 
 declare module 'next-auth' {
   interface Session {
-    accessToken?: string;
+    // accessToken is intentionally NOT in Session — kept server-side in JWT only
     user: {
       name?: string | null;
       email?: string | null;

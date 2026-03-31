@@ -1,3 +1,12 @@
+// ⚠️  DEPLOYMENT WARNING:
+// better-sqlite3 requires a persistent writable filesystem and native Node.js bindings.
+// It works for local development and self-hosted (VPS/Docker) deployments.
+// It does NOT work on Vercel (serverless/read-only filesystem).
+//
+// For Vercel deployment, migrate to:
+//   - Turso (serverless SQLite, near drop-in): https://turso.tech
+//   - Vercel Postgres:                         https://vercel.com/storage/postgres
+//   - Supabase (already used in some Hemkoll projects): https://supabase.com
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
